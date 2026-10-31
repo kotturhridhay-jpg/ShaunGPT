@@ -132,7 +132,7 @@ The model learns patterns in the training data and uses those patterns to genera
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/ShaunGPT.git
+git clone https://github.com/kotturhridhay-jpg/ShaunGPT.git
 ```
 
 ### 2. Navigate to the Project Directory
