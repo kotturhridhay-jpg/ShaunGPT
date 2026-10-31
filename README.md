@@ -1,4 +1,4 @@
-# ShaunGPT 🤖
+# ShaunGPT — Understanding Intelligence, One Token at a Time. 🤖
 
 ### A GPT-Style Language Model Built from Scratch Using Python and NumPy
 
