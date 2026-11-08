@@ -7,7 +7,7 @@ import torch.nn as nn     # Imports PyTorch neural-network layers
 import torch.nn.functional as F  # Imports PyTorch loss and activation functions
 
 # ========================= Configuration =========================
-SEED = 42                      # Sets the random seed to 42 so that random operations, such as weight initialization and data sampling, produce reproducible results across runs.
+SEED = 42                       # Sets the random seed to 42 so that random operations, such as weight initialization and data sampling, produce reproducible results across runs.
 MAX_CHARS = 750_000             # Sets the maximum number of characters to load from the training dataset, allowing the model to train on up to 750,000 characters.
 DEFAULT_STEPS = 7500            # Sets the default number of training iterations to 7,500, giving the model more opportunities to update its weights.
 DEFAULT_BATCH_SIZE = 16         # Sets the number of training sequences processed together in one training step; a smaller batch helps manage memory usage.
@@ -22,7 +22,7 @@ DEFAULT_DROPOUT_RATE = 0.12     # Sets the dropout probability to 12%, randomly 
 
 # Keep the original NumPy implementation's float64 parameter precision and run on CPU.
 DEVICE = torch.device("cpu")  # Creates a PyTorch device object that forces all model operations to run on the CPU.
-MODEL_DTYPE = torch.float64  # Sets model parameters and floating-point calculations to 64-bit precision.
+MODEL_DTYPE = torch.float64   # Sets model parameters and floating-point calculations to 64-bit precision.
 
 # ========================= Utility functions =========================
 def create_causal_mask(seq_len: int, device: torch.device | str | None = None, dtype: torch.dtype = MODEL_DTYPE) -> torch.Tensor:  # Defines a function to create a causal attention mask for autoregressive decoding
@@ -580,12 +580,20 @@ def main():  # Defines the main function that configures and runs model training
     print(f"Building ShaunGPT: {blocks} block(s), d_model={dim_model}, heads={n_heads}, context={args.seq_len}")  # Displays model architecture
     print(f"Training for {args.steps} steps...\n")  # Displays the planned number of training steps
 
-    initial_losses = None
-    final_losses = None
+    initial_losses = None  # Initializes the initial-loss variable. 
+    final_losses = None  # Initializes the final-loss variable.
+    # Evaluate the model before any training updates
+    initial_losses = estimate_loss(
+        model,
+        train_data,
+        val_data,
+        args.batch_size,
+        args.seq_len,
+        mask,
+        args.eval_batches
+    )
 
     for step in range(1, args.steps + 1):  # Runs the training loop from step one through the requested final step
-        initial_losses = None  # Initializes the initial-loss variable. IMPORTANT: this currently resets on every training step; it should be moved above the loop.
-        final_losses = None  # Initializes the final-loss variable. IMPORTANT: this currently resets on every training step; it should be moved above the loop.
         model.train()  # Enables dropout and training behavior
         x_batch, y_batch = get_batch(train_data, args.batch_size, args.seq_len)  # Samples training inputs and next-character targets
         optimizer.zero_grad(set_to_none=True)  # Clears gradients from the previous training step
@@ -612,10 +620,6 @@ def main():  # Defines the main function that configures and runs model training
             current_train = losses["train"]  # Extracts the training loss from the evaluation results dictionary.
             current_val = losses["val"]  # Extracts the validation loss from the evaluation results dictionary.
 
-            # Store the first evaluation results
-            if initial_losses is None:  # Checks whether an initial evaluation result has been stored yet.
-                initial_losses = losses.copy()  # Copies the current evaluation results so later changes do not alter this saved dictionary.
-
             # Store the latest evaluation results
             final_losses = losses.copy()  # Copies the newest evaluation results as the latest/final loss measurements.
             
@@ -623,7 +627,11 @@ def main():  # Defines the main function that configures and runs model training
 
         if args.sample_every and (step % args.sample_every == 0 or step == args.steps):  # Checks whether sampling is enabled and due
             prompt = "First Citizen:"  # Sets the text prompt used to start sample generation
-            prompt_tokens = [char_to_int[ch] for ch in prompt if ch in char_to_int]  # Converts available prompt characters to token IDs
+            # Converts available prompt characters to token IDs
+            if all(ch in char_to_int for ch in prompt):
+                prompt_tokens = [char_to_int[ch] for ch in prompt]
+            else:
+                prompt_tokens = [int(data[0].item())]
             if not prompt_tokens:  # Checks whether the prompt produced any valid vocabulary tokens
                 prompt_tokens = [int(data[0].item())]  # Uses the dataset's first token as a fallback
             generated_tokens = model.generate(  # Starts autoregressive generation from the prompt token IDs
