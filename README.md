@@ -1,6 +1,6 @@
 # ShaunGPT — Understanding Intelligence, One Token at a Time. 🤖
 
-### A GPT-Style Language Model Built from Scratch Using Python and PyTorch
+### A GPT-Style Language Model Built from Scratch Using Python, PyTorch/NumPy
 
 ShaunGPT is my implementation of a Generative Pre-trained Transformer (GPT)-style language model. Built using Python and PyTorch, this project explores the fundamental architecture and mathematical operations behind transformer-based language models.
 
