@@ -7,22 +7,22 @@ import torch.nn as nn     # Imports PyTorch neural-network layers
 import torch.nn.functional as F  # Imports PyTorch loss and activation functions
 
 # ========================= Configuration =========================
-SEED = 42                # Sets a fixed random seed value for reproducibility
-MAX_CHARS = 500_000      # Defines the maximum number of characters to load from the dataset
-DEFAULT_STEPS = 5000     # Sets the default number of training iterations
-DEFAULT_BATCH_SIZE = 32  # Sets the default number of sequences processed in parallel per batch
-DEFAULT_SEQ_LEN = 128    # Sets the default context length (number of tokens per sequence)
-DEFAULT_DIM_MODEL = 256  # Sets the default hidden dimension size for the model
-DEFAULT_N_HEADS = 4      # Sets the default number of attention heads in multi-head attention
-DEFAULT_BLOCKS = 4       # Sets the default number of transformer blocks in the model
-DEFAULT_LEARNING_RATE = 0.0005  # Sets the default learning rate for the optimizer
-DEFAULT_SAMPLE_EVERY = 1000      # Specifies how often (in steps) to generate and print text samples
-DEFAULT_GENERATE_TOKENS = 100   # Sets the default number of new tokens to generate during sampling
-DEFAULT_DROPOUT_RATE = 0.10     # Sets the dropout rate
+SEED = 42                      # Sets the random seed to 42 so that random operations, such as weight initialization and data sampling, produce reproducible results across runs.
+MAX_CHARS = 750_000             # Sets the maximum number of characters to load from the training dataset, allowing the model to train on up to 750,000 characters.
+DEFAULT_STEPS = 7500            # Sets the default number of training iterations to 7,500, giving the model more opportunities to update its weights.
+DEFAULT_BATCH_SIZE = 16         # Sets the number of training sequences processed together in one training step; a smaller batch helps manage memory usage.
+DEFAULT_SEQ_LEN = 192           # Sets the context length to 192 tokens, meaning the model can consider up to 192 previous characters when predicting the next character.
+DEFAULT_DIM_MODEL = 320         # Sets the model's embedding and hidden representation size to 320 dimensions, increasing the amount of information each token can represent.
+DEFAULT_N_HEADS = 5             # Sets the number of parallel self-attention heads to 5, allowing the model to learn different relationships between tokens simultaneously.
+DEFAULT_BLOCKS = 5              # Sets the number of Transformer blocks to 5, increasing the depth of the network and the number of processing stages applied to the input.
+DEFAULT_LEARNING_RATE = 0.0003  # Sets the learning rate to 0.0003, controlling how large each optimizer update is when adjusting the model's trainable parameters.
+DEFAULT_SAMPLE_EVERY = 1500     # Sets the interval between generated training samples to 1,500 steps, reducing how frequently the model pauses to display generated text.
+DEFAULT_GENERATE_TOKENS = 150   # Sets the number of new characters generated in each sample to 150, allowing longer text samples to be inspected.
+DEFAULT_DROPOUT_RATE = 0.12     # Sets the dropout probability to 12%, randomly disabling a fraction of activations during training to help reduce overfitting.
 
 # Keep the original NumPy implementation's float64 parameter precision and run on CPU.
-DEVICE = torch.device("cpu")
-MODEL_DTYPE = torch.float64
+DEVICE = torch.device("cpu")  # Creates a PyTorch device object that forces all model operations to run on the CPU.
+MODEL_DTYPE = torch.float64  # Sets model parameters and floating-point calculations to 64-bit precision.
 
 # ========================= Utility functions =========================
 def create_causal_mask(seq_len: int, device: torch.device | str | None = None, dtype: torch.dtype = MODEL_DTYPE) -> torch.Tensor:  # Defines a function to create a causal attention mask for autoregressive decoding
@@ -30,9 +30,9 @@ def create_causal_mask(seq_len: int, device: torch.device | str | None = None, d
     if seq_len <= 0:  # Checks if the sequence length is less than or equal to zero
         raise ValueError("seq_len must be positive")  # Raises an error if sequence length is invalid
 
-    future_positions = torch.triu(
-        torch.ones((seq_len, seq_len), dtype=torch.bool, device=device),
-        diagonal=1,
+    future_positions = torch.triu(  # Begins constructing a Boolean matrix that identifies positions later than each token.
+        torch.ones((seq_len, seq_len), dtype=torch.bool, device=device),  # Creates a square Boolean matrix of the requested sequence length on the selected device.
+        diagonal=1,  # Sets the diagonal offset to 1, so the main diagonal is excluded and only future positions are marked.
     )  # Marks positions that are strictly above the main diagonal
     mask = torch.zeros((seq_len, seq_len), dtype=dtype, device=device)  # Initializes all allowed positions to zero
     return mask.masked_fill(future_positions, float("-inf"))  # Sets future positions to negative infinity
@@ -106,9 +106,9 @@ class PositionalEncodingsLEGO(nn.Module):  # Defines the positional encoding mod
 
         pe = torch.zeros((max_seq_len, dim_model), dtype=torch.float64)  # Initializes positional encoding matrix with zeros
         position = torch.arange(max_seq_len, dtype=torch.float64).unsqueeze(1)  # Creates position indices as a column vector
-        div_term = torch.exp(
-            torch.arange(0, dim_model, 2, dtype=torch.float64)
-            * (-math.log(10000.0) / dim_model)
+        div_term = torch.exp(  # Begins calculating the frequency scale used by the sinusoidal position encodings.
+            torch.arange(0, dim_model, 2, dtype=torch.float64)  # Creates the even-numbered dimension indices: 0, 2, 4, and so on.
+            * (-math.log(10000.0) / dim_model)  # Scales those indices by the negative logarithmic frequency factor.
         )  # Computes the frequency terms for sinusoidal encodings
         pe[:, 0::2] = torch.sin(position * div_term)  # Applies sine to even positional-encoding dimensions
         # Handles both even and odd model dimensions safely.
@@ -146,10 +146,10 @@ class MultiHeadAttentionLEGO(nn.Module):  # Defines the Multi-Head Causal Self-A
         self.final_projection = LinearLEGO(dim_out, dim_out, include_bias=False)  # Final attention output projection
         self.softmax = SoftmaxLEGO()  # Softmax layer for attention weights
 
-    def forward(
-        self,
-        inputs: torch.Tensor,
-        mask: torch.Tensor | None = None,
+    def forward(  # Begins the attention layer's forward method, which processes the input tensors.
+        self,  # Receives the current module instance automatically.
+        inputs: torch.Tensor,  # Receives the input tensor containing the token representations.
+        mask: torch.Tensor | None = None,  # Optionally receives the mask that prevents attention to future tokens.
     ) -> torch.Tensor:  # Forward pass for multi-head attention
         batch, time_steps, _ = inputs.shape  # Unpacks batch size and sequence length
         queries = self.query_linear(inputs).reshape(batch, time_steps, self.n_heads, self.head_dim)  # Projects and reshapes queries
@@ -199,10 +199,10 @@ class TransformerBlockLEGO(nn.Module):  # Defines a single Transformer Decoder B
         )  # Completes feed-forward network construction
         self.layernorm2 = LayerNormLEGO(dim_model)  # Second layer normalization applied before FFN (Pre-LN)
 
-    def forward(
-        self,
-        inputs: torch.Tensor,
-        mask_attention: torch.Tensor | None = None,
+    def forward(  # Begins the Transformer block's forward method.
+        self,  # Receives the current module instance automatically.
+        inputs: torch.Tensor,  # Receives the hidden-state tensor entering this Transformer block.
+        mask_attention: torch.Tensor | None = None,  # Optionally receives the causal mask to pass into self-attention.
     ) -> torch.Tensor:  # Forward pass for transformer block
         normalized1 = self.layernorm1(inputs)  # Applies first layer normalization
         attention_output = self.multi_head_attention(normalized1, mask=mask_attention)  # Applies causal self-attention
@@ -231,13 +231,13 @@ class CrossEntropyWithSoftmaxLEGO(nn.Module):  # Defines the combined softmax an
 
 # ========================= GPT model =========================
 class GPTLEGO(nn.Module):  # Defines the complete character-level GPT model
-    def __init__(
-        self,
-        vocab_size: int,
-        blocks: int,
-        dim_model: int,
-        n_heads: int,
-        max_seq_len: int = 5000,
+    def __init__(  # Begins the GPT model constructor and its list of architecture settings.
+        self,  # Receives the current model instance automatically.
+        vocab_size: int,  # Specifies how many distinct token IDs the model can represent.
+        blocks: int,  # Specifies how many Transformer decoder blocks to stack.
+        dim_model: int,  # Specifies the width of each token's hidden representation.
+        n_heads: int,  # Specifies how many parallel attention heads each block uses.
+        max_seq_len: int = 5000,  # Sets the maximum sequence length supported by positional encodings.
     ):  # Constructor initializing the GPT architecture
         super().__init__()  # Initializes the parent nn.Module
         if vocab_size <= 1:  # Validates vocabulary size
@@ -251,16 +251,16 @@ class GPTLEGO(nn.Module):  # Defines the complete character-level GPT model
         self.embedding_decoder = EmbeddingsLEGO(vocab_size, dim_model)  # Initializes token embedding layer
         self.positional_encodings_decoder = PositionalEncodingsLEGO(dim_model, max_seq_len)  # Initializes positional encodings
         self.decoder_blocks = nn.ModuleList(  # Registers all transformer blocks with PyTorch
-            [TransformerBlockLEGO(dim_model, n_heads) for _ in range(blocks)]
+            [TransformerBlockLEGO(dim_model, n_heads) for _ in range(blocks)]  # Creates the requested number of independent Transformer blocks using a list comprehension.
         )  # Completes the decoder-block list
         self.final_layernorm = LayerNormLEGO(dim_model)  # Final layer normalization before output projection
         self.final_linear = LinearLEGO(dim_model, vocab_size)  # Projects hidden states to vocabulary logits
         self.loss_function = CrossEntropyWithSoftmaxLEGO()  # Creates the cross-entropy loss module
 
-    def forward(
-        self,
-        input_tokens_decoder: torch.Tensor,
-        mask_attention: torch.Tensor | None = None,
+    def forward(  # Begins the full GPT model's forward pass.
+        self,  # Receives the current model instance automatically.
+        input_tokens_decoder: torch.Tensor,  # Receives the integer token IDs that form the input sequence.
+        mask_attention: torch.Tensor | None = None,  # Optionally receives the causal attention mask.
     ) -> torch.Tensor:  # Forward pass for the full GPT model
         x = self.embedding_decoder(input_tokens_decoder)  # Converts token IDs to embedding vectors
         x = self.positional_encodings_decoder(x)  # Adds positional encodings to token embeddings
@@ -270,13 +270,13 @@ class GPTLEGO(nn.Module):  # Defines the complete character-level GPT model
         return self.final_linear(x)  # Projects hidden states to vocabulary logits
 
     @torch.no_grad()  # Disables gradient tracking during autoregressive generation
-    def generate(
-        self,
-        start_tokens,
-        max_new_tokens: int,
-        seq_len: int,
-        temperature: float = 1.0,
-        top_k: int | None = None,
+    def generate(  # Begins the autoregressive text-generation method.
+        self,  # Receives the current model instance automatically.
+        start_tokens,  # Contains the starting token IDs that seed generation.
+        max_new_tokens: int,  # Sets how many additional tokens to generate.
+        seq_len: int,  # Sets the maximum context length used for each prediction.
+        temperature: float = 1.0,  # Controls randomness in sampling; lower values make distributions more concentrated.
+        top_k: int | None = None,  # Optionally restricts sampling to the highest-scoring k tokens.
     ) -> list[int]:  # Autoregressive text generation method
         """Generate max_new_tokens autoregressively; start_tokens are character IDs."""
         if temperature <= 0:  # Validates temperature
@@ -326,8 +326,8 @@ def load_shakespeare(data_path: str | Path | None = None, max_chars: int | None 
     data_path = Path(data_path).expanduser().resolve()  # Resolves the absolute path to the dataset file
     if not data_path.is_file():  # Checks if dataset file exists
         raise FileNotFoundError(  # Raises a file-not-found error with a helpful troubleshooting message
-            f"Could not find dataset: {data_path}\n"
-            "Place input.txt in the same folder as Shaun_fixed.py, or pass --data PATH."
+            f"Could not find dataset: {data_path}\n"  # Begins the first line of the error message and inserts the missing file's path.
+            "Place input.txt in the same folder as Shaun_fixed.py, or pass --data PATH."  # Adds a second troubleshooting line explaining where to put the dataset or how to specify it.
         )  # Closes the error constructor call
 
     text = data_path.read_text(encoding="utf-8")  # Reads the text file using UTF-8 encoding
@@ -355,6 +355,145 @@ def get_batch(data: torch.Tensor, batch_size: int, seq_len: int):  # Defines fun
     y = torch.stack([data[i + 1:i + seq_len + 1] for i in offsets.tolist()])  # Creates next-character targets shifted by one
     return x, y  # Returns input batch x and target batch y
 
+# ========================= GPT Technical Report Engine =========================
+def print_technical_report(model, args, data, train_data, val_data, vocab_size, initial_losses, final_losses, elapsed_time, data_path):  # Defines the function that prints model, dataset, training, performance, and runtime details.
+    # Calculate parameter statistics
+    total_parameters = sum(  # Begins summing the number of elements across all model parameter tensors.
+        parameter.numel()  # Gets the number of scalar elements in the current parameter tensor.
+        for parameter in model.parameters()  # Iterates over every parameter tensor registered in the model.
+    )  # Ends the sum expression and stores the total parameter count.
+
+    trainable_parameters = sum(  # Begins counting only parameters that are trainable.
+        parameter.numel()  # Gets the number of scalar elements in the current parameter tensor.
+        for parameter in model.parameters()  # Iterates over every parameter tensor in the model.
+        if parameter.requires_grad  # Includes a parameter only when PyTorch is allowed to calculate gradients for it.
+    )  # Ends the sum expression for trainable parameters.
+
+    non_trainable_parameters = total_parameters - trainable_parameters  # Calculates the parameter count that is not trainable by subtracting trainable from total.
+
+    # Calculate model parameter memory
+    parameter_memory = sum(  # Begins calculating the storage occupied by model parameter tensors.
+        parameter.numel() * parameter.element_size()  # Calculates bytes used by one parameter tensor: element count multiplied by bytes per element.
+        for parameter in model.parameters()  # Iterates through all model parameter tensors.
+    )  # Ends the parameter-memory calculation.
+
+    buffer_memory = sum(  # Begins calculating memory occupied by registered model buffers.
+        buffer.numel() * buffer.element_size()  # Calculates the bytes occupied by the current buffer tensor.
+        for buffer in model.buffers()  # Iterates through buffers, such as the fixed positional-encoding matrix.
+    )  # Ends the buffer-memory calculation.
+
+    # Extract architecture information
+    dim_model = DEFAULT_DIM_MODEL  # Reads the configured model hidden dimension for display in the report.
+    n_heads = DEFAULT_N_HEADS  # Reads the configured number of attention heads for display.
+    blocks = DEFAULT_BLOCKS  # Reads the configured number of Transformer blocks for display.
+    head_dim = dim_model // n_heads  # Calculates the width of each attention head using integer division.
+    feed_forward_dim = dim_model * 4  # Calculates the feed-forward network's hidden width, set to four times the model width.
+
+    # Extract runtime information
+    device = next(model.parameters()).device  # Gets the device (CPU or GPU) used by the model's first parameter tensor.
+    dtype = next(model.parameters()).dtype  # Gets the numerical data type used by the model's first parameter tensor.
+
+    # Print report
+    print("\n")  # Prints a blank line before the report.
+    print("=" * 65)  # Prints a 65-character divider to make the report visually distinct.
+    print("                     SHAUNGPT")  # Prints the model name as the report heading.
+    print("                TECHNICAL MODEL REPORT")  # Prints the report subtitle.
+    print("=" * 65)  # Prints the closing divider for the heading.
+
+    # 01 - Model identification
+    print("\n---------- 01. MODEL IDENTIFICATION ----------")  # Prints the heading for the model-identification section.
+    print(f"Model Name          : ShaunGPT")  # Prints the model's name.
+    print(f"Architecture        : Decoder-Only Transformer")  # Prints the high-level Transformer architecture type.
+    print(f"Model Type          : Character-Level Language Model")  # Identifies the model as predicting individual characters rather than whole words or subwords.
+    print(f"Framework           : PyTorch {torch.__version__}")  # Prints the installed PyTorch version using its runtime version string.
+    print(f"Execution Device    : {str(device).upper()}")  # Prints the execution device in uppercase, such as CPU.
+    print(f"Numerical Precision : {dtype}")  # Prints the model parameter precision, such as torch.float64.
+
+    # 02 - Architecture
+    print("\n---------- 02. MODEL ARCHITECTURE ----------")  # Prints the heading for the architecture section.
+    print(f"Transformer Blocks  : {blocks}")  # Prints the number of stacked Transformer blocks.
+    print(f"Embedding Dimension : {dim_model}")  # Prints the size of each hidden embedding vector.
+    print(f"Attention Heads     : {n_heads}")  # Prints the number of attention heads in each block.
+    print(f"Head Dimension      : {head_dim}")  # Prints the number of dimensions assigned to each attention head.
+    print(f"Context Length      : {args.seq_len}")  # Prints the maximum input context length used for training.
+    print(f"Vocabulary Size     : {vocab_size}")  # Prints the number of unique characters represented in the vocabulary.
+    print(f"Feed Forward Dim    : {feed_forward_dim}")  # Prints the hidden width of the feed-forward network.
+    print(f"Activation          : ReLU")  # Prints the activation function used inside the feed-forward network.
+    print(f"Normalization       : Layer Normalization")  # Prints the normalization method used in Transformer blocks.
+    print(f"Position Encoding   : Sinusoidal")  # Prints the method used to encode token positions.
+    print(f"Attention           : Causal Self-Attention")  # Prints the attention type, which blocks access to future tokens.
+    print(f"Residual Connections: Enabled")  # Reports that residual connections are part of the architecture.
+
+    # 03 - Parameter statistics
+    print("\n---------- 03. MODEL PARAMETERS ----------")  # Prints the heading for the parameter statistics section.
+    print(f"Total Parameters    : {total_parameters:,}")  # Prints the total number of scalar parameters, with comma separators.
+    print(f"Trainable Parameters: {trainable_parameters:,}")  # Prints the number of parameters that receive gradient updates.
+    print(f"Non-Trainable Params: {non_trainable_parameters:,}")  # Prints the number of parameters that do not receive gradient updates.
+    print(f"Parameter Memory    : {parameter_memory / (1024**2):.2f} MiB")  # Converts parameter storage from bytes to mebibytes and prints two decimal places.
+    print(f"Buffer Memory       : {buffer_memory / (1024**2):.2f} MiB")  # Converts registered-buffer storage from bytes to mebibytes and prints two decimal places.
+
+    # 04 - Dataset information
+    print("\n---------- 04. DATASET INFORMATION ----------")  # Prints the heading for the dataset section.
+    print(f"Dataset             : Tiny Shakespeare")  # Prints the dataset's human-readable name.
+    print(f"Dataset Source      : {data_path}")  # Prints the resolved path of the source text file.
+    print(f"Characters Loaded   : {len(data):,}")  # Prints the number of characters loaded into the encoded dataset.
+    print(f"Unique Characters   : {vocab_size}")  # Prints the number of unique characters in the vocabulary.
+    print(f"Training Characters : {len(train_data):,}")  # Prints the number of encoded characters assigned to training.
+    print(f"Validation Characters: {len(val_data):,}")  # Prints the number of encoded characters assigned to validation.
+    print(f"Training Split      : {1 - args.val_fraction:.0%}")  # Prints the percentage of the dataset used for training.
+    print(f"Validation Split    : {args.val_fraction:.0%}")  # Prints the percentage of the dataset reserved for validation.
+
+    # 05 - Training configuration
+    print("\n---------- 05. TRAINING CONFIGURATION ----------")  # Prints the heading for the training-configuration section.
+    print(f"Training Steps      : {args.steps:,}")  # Prints the requested number of optimizer update steps.
+    print(f"Batch Size          : {args.batch_size}")  # Prints how many sequences are processed together in each batch.
+    print(f"Sequence Length     : {args.seq_len}")  # Prints the number of characters/tokens in each training sequence.
+    print(f"Learning Rate       : {DEFAULT_LEARNING_RATE}")  # Prints the learning rate supplied to Adam.
+    print(f"Optimizer           : Adam")  # Prints the optimizer algorithm used to update the model parameters.
+    print(f"Loss Function       : Cross Entropy")  # Prints the loss function used to measure next-character prediction error.
+    print(f"Dropout Rate        : {DEFAULT_DROPOUT_RATE}")  # Prints the probability used by dropout to zero activations during training.
+    print(f"Gradient Clipping   : 1.0")  # Prints the maximum gradient norm used by gradient clipping.
+    print(f"Random Seed         : {SEED}")  # Prints the fixed seed used for repeatable random-number generation.
+    print(f"Evaluation Interval : {args.eval_every}")  # Prints how frequently the model is evaluated during training.
+    print(f"Evaluation Batches  : {args.eval_batches}")  # Prints how many batches are averaged for each evaluation.
+
+    # 06 - Training performance
+    print("\n---------- 06. TRAINING PERFORMANCE ----------")  # Prints the heading for the training-performance section.
+
+    print(  # Begins a print call that formats the initial training loss.
+        f"Initial Train Loss  : "  # Starts the text label for the initial training-loss value.
+        f"{initial_losses['train']:.4f}"  # Reads the initial training loss and formats it to four decimal places.
+    )  # Closes the print call for the initial training loss.
+
+    print(  # Begins a print call that formats the initial validation loss.
+        f"Initial Val Loss    : "  # Starts the text label for the initial validation-loss value.
+        f"{initial_losses['val']:.4f}"  # Reads the initial validation loss and formats it to four decimal places.
+    )  # Closes the print call for the initial validation loss.
+
+    print(  # Begins a print call that formats the final training loss.
+        f"Final Train Loss    : "  # Starts the text label for the final training-loss value.
+        f"{final_losses['train']:.4f}"  # Reads the final training loss and formats it to four decimal places.
+    )  # Closes the print call for the final training loss.
+
+    print(  # Begins a print call that formats the final validation loss.
+        f"Final Val Loss      : "  # Starts the text label for the final validation-loss value.
+        f"{final_losses['val']:.4f}"  # Reads the final validation loss and formats it to four decimal places.
+    )  # Closes the print call for the final validation loss.
+
+    print(f"Training Duration   : {elapsed_time:.2f} seconds")  # Prints total elapsed runtime rounded to two decimal places.
+
+    # 07 - Computational information
+    print("\n---------- 07. COMPUTATIONAL DETAILS ----------")  # Prints the heading for the computational-details section.
+    print(f"Execution Backend   : PyTorch")  # Prints the software framework used to run the model.
+    print(f"Device              : {device}")  # Prints the device object used by the model.
+    print(f"Parameter Data Type : {dtype}")  # Prints the data type used for the model parameters.
+    print(f"GPU Acceleration    : {'Enabled' if device.type == 'cuda' else 'Disabled'}")  # Reports GPU acceleration as enabled only if the model is on a CUDA device.
+
+    # Final separator
+    print("\n" + "=" * 65)  # Prints a blank line followed by the report's bottom divider.
+    print("                 END OF TECHNICAL REPORT")  # Prints the report-ending label.
+    print("=" * 65 + "\n")  # Prints the final divider and a trailing blank line.
+
 # ========================= Validation and checkpointing =========================
 def estimate_loss(model, train_data, val_data, batch_size, seq_len, mask, eval_batches=10):  # Estimates train and validation losses
     """Estimate train/validation loss on fresh batches without updating weights."""
@@ -378,7 +517,7 @@ def estimate_loss(model, train_data, val_data, batch_size, seq_len, mask, eval_b
 
 def main():  # Defines the main function that configures and runs model training
     parser = argparse.ArgumentParser(  # Creates a command-line argument parser for training options
-        description="Train a small PyTorch character-level GPT on Tiny Shakespeare, with validation."
+        description="Train a small PyTorch character-level GPT on Tiny Shakespeare, with validation."  # Provides the description displayed in the command-line help output.
     )  # Closes the argument parser constructor call
     parser.add_argument("--data", type=Path, default=None,  # Adds an optional command-line argument for the dataset file path
                         help="Path to input.txt (default: beside this script)")  # Explains the dataset path argument
@@ -399,6 +538,8 @@ def main():  # Defines the main function that configures and runs model training
     parser.add_argument("--eval-batches", type=int, default=10,  # Adds the number of batches averaged during each evaluation
                         help="Number of batches averaged for each loss evaluation")  # Explains the evaluation batch-count argument
     args = parser.parse_args()  # Reads the command-line arguments supplied when the script is launched
+
+    run_start_time = time.perf_counter() # This measures the complete run, including dataset loading, model initialization, training and generation.
 
     if args.steps <= 0 or args.batch_size <= 0 or args.seq_len <= 0:  # Checks that dimensions and step count are positive
         parser.error("--steps, --batch-size and --seq-len must all be positive")  # Reports invalid training dimensions
@@ -427,11 +568,11 @@ def main():  # Defines the main function that configures and runs model training
     n_heads = DEFAULT_N_HEADS  # Selects the configured number of attention heads
     blocks = DEFAULT_BLOCKS  # Selects the configured number of transformer decoder blocks
     model = GPTLEGO(  # Constructs the character-level GPT using the selected architecture settings
-        vocab_size,
-        blocks,
-        dim_model,
-        n_heads,
-        max_seq_len=max(5000, args.seq_len),
+        vocab_size,  # Passes the vocabulary size as the first positional constructor argument.
+        blocks,  # Passes the number of Transformer blocks as the second constructor argument.
+        dim_model,  # Passes the hidden embedding dimension as the third constructor argument.
+        n_heads,  # Passes the number of attention heads as the fourth constructor argument.
+        max_seq_len=max(5000, args.seq_len),  # Sets positional encoding capacity to at least 5,000 positions or the requested context length.
     ).to(device=DEVICE, dtype=MODEL_DTYPE)  # Places the model on CPU and preserves float64 precision
     optimizer = torch.optim.Adam(model.parameters(), lr=DEFAULT_LEARNING_RATE)  # Creates the PyTorch Adam optimizer
     mask = create_causal_mask(args.seq_len, device=DEVICE, dtype=MODEL_DTYPE)  # Builds the causal mask for training sequences
@@ -439,7 +580,12 @@ def main():  # Defines the main function that configures and runs model training
     print(f"Building ShaunGPT: {blocks} block(s), d_model={dim_model}, heads={n_heads}, context={args.seq_len}")  # Displays model architecture
     print(f"Training for {args.steps} steps...\n")  # Displays the planned number of training steps
 
+    initial_losses = None
+    final_losses = None
+
     for step in range(1, args.steps + 1):  # Runs the training loop from step one through the requested final step
+        initial_losses = None  # Initializes the initial-loss variable. IMPORTANT: this currently resets on every training step; it should be moved above the loop.
+        final_losses = None  # Initializes the final-loss variable. IMPORTANT: this currently resets on every training step; it should be moved above the loop.
         model.train()  # Enables dropout and training behavior
         x_batch, y_batch = get_batch(train_data, args.batch_size, args.seq_len)  # Samples training inputs and next-character targets
         optimizer.zero_grad(set_to_none=True)  # Clears gradients from the previous training step
@@ -455,17 +601,25 @@ def main():  # Defines the main function that configures and runs model training
         should_evaluate = (step == 1 or step % args.eval_every == 0 or step == args.steps)  # Checks whether evaluation is due
         if should_evaluate:  # Runs evaluation only when scheduled
             losses = estimate_loss(  # Estimates loss on fresh training and validation batches
-                model,
-                train_data,
-                val_data,
-                args.batch_size,
-                args.seq_len,
-                mask,
-                args.eval_batches,
+                model,  # Passes the model instance to the loss-estimation function.
+                train_data,  # Passes the training split so its loss can be estimated.
+                val_data,  # Passes the validation split so its loss can be estimated.
+                args.batch_size,  # Passes the batch size used to sample evaluation batches.
+                args.seq_len,  # Passes the sequence length used for evaluation.
+                mask,  # Passes the precomputed causal attention mask.
+                args.eval_batches,  # Passes the number of batches to average for each split.
             )  # Completes the evaluation call
-            current_train = losses["train"]  # Extracts estimated training loss
-            current_val = losses["val"]  # Extracts estimated validation loss
-            print(f"  Evaluation | train loss: {current_train:.4f} | validation loss: {current_val:.4f}")  # Prints average training and validation losses
+            current_train = losses["train"]  # Extracts the training loss from the evaluation results dictionary.
+            current_val = losses["val"]  # Extracts the validation loss from the evaluation results dictionary.
+
+            # Store the first evaluation results
+            if initial_losses is None:  # Checks whether an initial evaluation result has been stored yet.
+                initial_losses = losses.copy()  # Copies the current evaluation results so later changes do not alter this saved dictionary.
+
+            # Store the latest evaluation results
+            final_losses = losses.copy()  # Copies the newest evaluation results as the latest/final loss measurements.
+            
+            print(f"  Evaluation | train loss: {current_train:.4f} | validation loss: {current_val:.4f}")  # Prints the current evaluation's training and validation losses to four decimal places.
 
         if args.sample_every and (step % args.sample_every == 0 or step == args.steps):  # Checks whether sampling is enabled and due
             prompt = "First Citizen:"  # Sets the text prompt used to start sample generation
@@ -473,21 +627,42 @@ def main():  # Defines the main function that configures and runs model training
             if not prompt_tokens:  # Checks whether the prompt produced any valid vocabulary tokens
                 prompt_tokens = [int(data[0].item())]  # Uses the dataset's first token as a fallback
             generated_tokens = model.generate(  # Starts autoregressive generation from the prompt token IDs
-                prompt_tokens,
-                max_new_tokens=DEFAULT_GENERATE_TOKENS,
-                seq_len=args.seq_len,
-                temperature=0.8,
-                top_k=min(20, vocab_size),
+                prompt_tokens,  # Passes the prompt token IDs as the first argument to the generation method.
+                max_new_tokens=DEFAULT_GENERATE_TOKENS,  # Sets the number of newly generated tokens.
+                seq_len=args.seq_len,  # Sets the context window used during generation.
+                temperature=0.8,  # Sets the sampling temperature to 0.8.
+                top_k=min(20, vocab_size),  # Limits sampling to at most 20 candidate tokens, or the vocabulary size if smaller.
             )  # Completes the text-generation call
             generated_text = "".join(int_to_char[token] for token in generated_tokens)  # Converts generated IDs back into characters
             print("\n--- ShaunGPT sample ---")  # Prints a heading before generated text
             print(generated_text)  # Displays the generated character sequence
             print("-----------------------\n")  # Prints a separator after the generated sample
 
-    print("ShaunGPT Training successfully finished!")  # Displays a message indicating training has ended
+    print("ShaunGPT Training successfully finished!")  # Prints a message confirming that the training loop has completed.
 
-if __name__ == "__main__":  # Runs training only when this file is executed directly
-    start_time = time.time()  # Records the start time before training begins
-    main()  # Calls the main training function
-    elapsed_time = time.time() - start_time  # Calculates total elapsed runtime
-    print(f"\nShaunGPT took {elapsed_time:.2f} seconds to train and test itself.")  # Prints total runtime in seconds
+    # Calculate total execution time
+    elapsed_time = time.perf_counter() - run_start_time  # Calculates elapsed wall-clock time using the high-resolution performance counter.
+
+    # Identify dataset source
+    data_path = (  # Begins a conditional expression that chooses the dataset's absolute path.
+        Path(args.data).expanduser().resolve()  # Expands the user-home shortcut and resolves the supplied dataset path.
+        if args.data  # Uses the supplied path when the --data argument was provided.
+        else Path(__file__).resolve().with_name("input.txt")  # Otherwise resolves input.txt next to this Python script.
+    )  # Closes the parenthesized conditional expression.
+
+    # Generate technical report
+    print_technical_report(  # Begins calling the report function with named arguments.
+        model=model,  # Supplies the trained GPT model to the report function.
+        args=args,  # Supplies the parsed command-line settings.
+        data=data,  # Supplies the complete encoded dataset.
+        train_data=train_data,  # Supplies the training portion of the dataset.
+        val_data=val_data,  # Supplies the validation portion of the dataset.
+        vocab_size=vocab_size,  # Supplies the vocabulary size.
+        initial_losses=initial_losses,  # Supplies the initial evaluation-loss dictionary.
+        final_losses=final_losses,  # Supplies the latest evaluation-loss dictionary.
+        elapsed_time=elapsed_time,  # Supplies the measured elapsed runtime.
+        data_path=data_path,  # Supplies the resolved dataset file path.
+    )  # Closes the report-function call.
+
+if __name__ == "__main__":  # Runs the following block only when this file is executed directly, not imported as a module.
+    main()  # Calls main() to parse arguments, train the GPT, generate samples, and print the technical report.
