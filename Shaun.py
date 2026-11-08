@@ -3,7 +3,7 @@ import argparse          # Imports argparse module for parsing command-line argu
 import numpy as np       # Imports NumPy library and assigns it the standard alias np
 
 # ========================= Configuration =========================
-SEED = 42                      # Sets the random seed to 42 so that random operations, such as weight initialization and data sampling, produce reproducible results across runs.
+SEED = 42                       # Sets the random seed to 42 so that random operations, such as weight initialization and data sampling, produce reproducible results across runs.
 MAX_CHARS = 750_000             # Sets the maximum number of characters to load from the training dataset, allowing the model to train on up to 750,000 characters.
 DEFAULT_STEPS = 7500            # Sets the default number of training iterations to 7,500, giving the model more opportunities to update its weights.
 DEFAULT_BATCH_SIZE = 16         # Sets the number of training sequences processed together in one training step; a smaller batch helps manage memory usage.
