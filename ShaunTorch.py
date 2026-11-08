@@ -10,7 +10,7 @@ import torch.nn.functional as F  # Imports PyTorch loss and activation functions
 SEED = 42                       # Sets the random seed to 42 so that random operations, such as weight initialization and data sampling, produce reproducible results across runs.
 MAX_CHARS = 750_000             # Sets the maximum number of characters to load from the training dataset, allowing the model to train on up to 750,000 characters.
 DEFAULT_STEPS = 7500            # Sets the default number of training iterations to 7,500, giving the model more opportunities to update its weights.
-DEFAULT_BATCH_SIZE = 16         # Sets the number of training sequences processed together in one training step; a smaller batch helps manage memory usage.
+DEFAULT_BATCH_SIZE = 32         # Sets the number of training sequences processed together in one training step; a smaller batch helps manage memory usage.
 DEFAULT_SEQ_LEN = 192           # Sets the context length to 192 tokens, meaning the model can consider up to 192 previous characters when predicting the next character.
 DEFAULT_DIM_MODEL = 320         # Sets the model's embedding and hidden representation size to 320 dimensions, increasing the amount of information each token can represent.
 DEFAULT_N_HEADS = 5             # Sets the number of parallel self-attention heads to 5, allowing the model to learn different relationships between tokens simultaneously.
@@ -574,7 +574,7 @@ def main():  # Defines the main function that configures and runs model training
         n_heads,  # Passes the number of attention heads as the fourth constructor argument.
         max_seq_len=max(5000, args.seq_len),  # Sets positional encoding capacity to at least 5,000 positions or the requested context length.
     ).to(device=DEVICE, dtype=MODEL_DTYPE)  # Places the model on CPU and preserves float64 precision
-    optimizer = torch.optim.Adam(model.parameters(), lr=DEFAULT_LEARNING_RATE)  # Creates the PyTorch Adam optimizer
+    optimizer = torch.optim.Adam(model.parameters(), lr=DEFAULT_LEARNING_RATE, weight_decay=0.01)  # Creates the PyTorch Adam optimizer
     mask = create_causal_mask(args.seq_len, device=DEVICE, dtype=MODEL_DTYPE)  # Builds the causal mask for training sequences
 
     print(f"Building ShaunGPT: {blocks} block(s), d_model={dim_model}, heads={n_heads}, context={args.seq_len}")  # Displays model architecture
