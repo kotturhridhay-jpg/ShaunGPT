@@ -3,18 +3,18 @@ import argparse          # Imports argparse module for parsing command-line argu
 import numpy as np       # Imports NumPy library and assigns it the standard alias np
 
 # ========================= Configuration =========================
-SEED = 42                # Sets a fixed random seed value for reproducibility
-MAX_CHARS = 500_000      # Defines the maximum number of characters to load from the dataset
-DEFAULT_STEPS = 5000     # Sets the default number of training iterations
-DEFAULT_BATCH_SIZE = 32  # Sets the default number of sequences processed in parallel per batch
-DEFAULT_SEQ_LEN = 128    # Sets the default context length (number of tokens per sequence)
-DEFAULT_DIM_MODEL = 256  # Sets the default hidden dimension size for the model
-DEFAULT_N_HEADS = 4      # Sets the default number of attention heads in multi-head attention
-DEFAULT_BLOCKS = 4       # Sets the default number of transformer blocks in the model
-DEFAULT_LEARNING_RATE = 0.0005  # Sets the default learning rate for the optimizer
-DEFAULT_SAMPLE_EVERY = 1000      # Specifies how often (in steps) to generate and print text samples
-DEFAULT_GENERATE_TOKENS = 100   # Sets the default number of new tokens to generate during sampling
-DEFAULT_DROPOUT_RATE = 0.10     # Set the dropout rate
+SEED = 42                      # Sets the random seed to 42 so that random operations, such as weight initialization and data sampling, produce reproducible results across runs.
+MAX_CHARS = 750_000             # Sets the maximum number of characters to load from the training dataset, allowing the model to train on up to 750,000 characters.
+DEFAULT_STEPS = 7500            # Sets the default number of training iterations to 7,500, giving the model more opportunities to update its weights.
+DEFAULT_BATCH_SIZE = 16         # Sets the number of training sequences processed together in one training step; a smaller batch helps manage memory usage.
+DEFAULT_SEQ_LEN = 192           # Sets the context length to 192 tokens, meaning the model can consider up to 192 previous characters when predicting the next character.
+DEFAULT_DIM_MODEL = 320         # Sets the model's embedding and hidden representation size to 320 dimensions, increasing the amount of information each token can represent.
+DEFAULT_N_HEADS = 5             # Sets the number of parallel self-attention heads to 5, allowing the model to learn different relationships between tokens simultaneously.
+DEFAULT_BLOCKS = 5              # Sets the number of Transformer blocks to 5, increasing the depth of the network and the number of processing stages applied to the input.
+DEFAULT_LEARNING_RATE = 0.0003  # Sets the learning rate to 0.0003, controlling how large each optimizer update is when adjusting the model's trainable parameters.
+DEFAULT_SAMPLE_EVERY = 1500     # Sets the interval between generated training samples to 1,500 steps, reducing how frequently the model pauses to display generated text.
+DEFAULT_GENERATE_TOKENS = 150   # Sets the number of new characters generated in each sample to 150, allowing longer text samples to be inspected.
+DEFAULT_DROPOUT_RATE = 0.12     # Sets the dropout probability to 12%, randomly disabling a fraction of activations during training to help reduce overfitting.
 
 # ========================= Utility functions =========================
 def create_causal_mask(seq_len: int) -> np.ndarray:  # Defines a function to create a causal attention mask for autoregressive decoding
