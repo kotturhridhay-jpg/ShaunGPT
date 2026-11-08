@@ -208,20 +208,4 @@ The implementation uses CPU-based tensor operations and PyTorch's automatic diff
 
 This project demonstrates how Transformer architectures can be implemented and experimented with on consumer hardware without requiring a dedicated GPU.
 
-## ⚠️ Limitations
-
-ShaunGPT is an educational language model, not a production-ready conversational AI system.
-
-Its current limitations include:
-
-- It uses character-level tokenization rather than a modern subword tokenizer.
-- It is trained on a relatively small dataset.
-- It has a considerably smaller architecture than modern large language models.
-- Its generated text may contain grammatical inconsistencies and repetition.
-- It does not have conversational instruction-following capabilities.
-- It does not use pretrained weights.
-- CPU-based float64 computation increases computational cost compared with lower-precision alternatives.
-- It does not currently implement distributed training or GPU acceleration.
-- Training does not currently include automatic checkpoint saving and resumption.
-
 **Understanding Intelligence, One Token at a Time.** 🤖
