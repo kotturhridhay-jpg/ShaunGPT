@@ -1,14 +1,12 @@
 # ShaunGPT — Understanding Intelligence, One Token at a Time. 🤖
 
-### A GPT-Style Language Model Built from Scratch Using Python, PyTorch/NumPy
+### A GPT-Style Language Model Built from Scratch Using Python, & PyTorch/NumPy
 
-ShaunGPT is my implementation of a Generative Pre-trained Transformer (GPT)-style language model. Built using Python and PyTorch, this project explores the fundamental architecture and mathematical operations behind transformer-based language models.
+ShaunGPT is my implementation of a Generative Pre-trained Transformer (GPT)-style language model. Built using Python and PyTorch/NumPy, this project explores the fundamental architecture and mathematical operations behind transformer-based language models.
 
 The model is trained on the Tiny Shakespeare dataset and learns to generate character-level text by predicting the next character in a sequence.
 
 This educational implementation explores the internal workings of a decoder-only Transformer, including token embeddings, positional encoding, causal self-attention, multi-head attention, feed-forward networks, backpropagation, gradient optimization and autoregressive text generation.
-
-ShaunGPT represents my progression from implementing transformer architectures using NumPy to developing a more scalable implementation using PyTorch.
 
 ---
 
@@ -35,7 +33,7 @@ ShaunGPT uses a decoder-only Transformer architecture inspired by the original G
 |---|---|
 | Architecture | Decoder-only Transformer |
 | Programming Language | Python |
-| Deep Learning Framework | PyTorch |
+| Deep Learning Framework | PyTorch/NumPy |
 | Tokenization | Character-level |
 | Transformer Blocks | 5 |
 | Embedding Dimension | 320 |
