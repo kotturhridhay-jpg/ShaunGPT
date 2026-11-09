@@ -173,7 +173,7 @@ The current default training configuration is:
 | Parameter | Value |
 |---|---:|
 | Training Steps | 7,500 |
-| Batch Size | 16 |
+| Batch Size | 32 |
 | Learning Rate | 0.0003 |
 | Context Length | 192 |
 | Dropout Rate | 0.12 |
